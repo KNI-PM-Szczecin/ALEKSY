@@ -1,11 +1,11 @@
 name: aleksy
 
 services:
-  bot:
+  aleksy:
     build: .
     container_name: ALEKSY
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      BOT_TOKEN: ${BOT_TOKEN}
+      TIMEZONE: ${TIMEZONE:-Europe/Warsaw}
