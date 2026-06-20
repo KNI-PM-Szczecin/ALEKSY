@@ -17,8 +17,6 @@ pipeline {
                 sh """
                     mkdir -p ~/Containers/ALEKSY
 
-                    cp .env ~/Containers/ALEKSY/.env
-
                     cat > ~/Containers/ALEKSY/docker-compose.yml << 'COMPOSE'
 name: aleksy
 
