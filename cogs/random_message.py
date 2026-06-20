@@ -8,7 +8,7 @@ class RandomMessageCog(commands.Cog):
         self.client = client
         self.config = config
         
-        # Słownik przechowujący instancje prawdopodobieństwa dla każdego serwera (guild_id -> DynamicProbability)
+        # Dictionary storing probability instances for each guild (guild_id -> DynamicProbability)
         self.probabilities = {}
         
         self.forbidden_keywords = [
@@ -16,17 +16,17 @@ class RandomMessageCog(commands.Cog):
             "informacje", "news", "update", "regulamin", "rules", "zasady", "github"
         ]
         
-        # Śledzenie ilości wiadomości na poszczególnych kanałach w ciągu ostatniej godziny (channel_id -> count)
+        # Tracking the number of messages per channel in the last hour (channel_id -> count)
         self.hourly_message_counts = {}
         
         self.random_message_task.start()
 
     def get_probability(self, guild_id):
         if guild_id not in self.probabilities:
-            # Inicjalizacja modułu prawdopodobieństwa dla nowego serwera
+            # Initialize probability module for a new guild
             self.probabilities[guild_id] = DynamicProbability(
                 base_sequence=[10, 8, 5, 3, 2], 
-                premium_hours=[18, 19, 20, 21, 22],
+                premium_hours=[7, 8, 9,10, 18, 19, 20, 21, 22],
                 premium_multiplier=1.5
             )
         return self.probabilities[guild_id]
@@ -36,11 +36,11 @@ class RandomMessageCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # Ignoruj wiadomości od botów
+        # Ignore messages from bots
         if message.author.bot:
             return
         
-        # Zwiększ licznik wiadomości dla danego kanału
+        # Increment message counter for the given channel
         channel_id = message.channel.id
         self.hourly_message_counts[channel_id] = self.hourly_message_counts.get(channel_id, 0) + 1
 
@@ -52,7 +52,7 @@ class RandomMessageCog(commands.Cog):
         for guild in self.client.guilds:
             valid_channels = []
             
-            # Filtrowanie kanałów po uprawnieniach i nazwach
+            # Filter channels by permissions and names
             for channel in guild.text_channels:
                 if not channel.permissions_for(guild.me).send_messages or not channel.permissions_for(guild.me).read_message_history:
                     continue
@@ -66,12 +66,12 @@ class RandomMessageCog(commands.Cog):
             active_channels = []
             total_activity = 0
             
-            # Weryfikacja aktywności w ciągu ostatniej godziny i w historii bota
+            # Verify activity in the last hour and in the bot's history
             for channel in valid_channels:
                 count = self.hourly_message_counts.get(channel.id, 0)
                 
                 if count > 0:
-                    # Sprawdź, czy bot miał kiedykolwiek aktywność na tym kanale
+                    # Check if the bot has ever had activity in this channel
                     has_bot_activity = False
                     try:
                         async for msg in channel.history(limit=50):
@@ -85,35 +85,35 @@ class RandomMessageCog(commands.Cog):
                         active_channels.append((channel, count))
                         total_activity += count
 
-            # Ustal mnożnik szansy na podstawie całkowitej aktywności na serwerze w ciągu godziny
-            # Jeśli 0 wiadomości -> mnożnik 0.1 (bardzo niska szansa)
-            # Jeśli 20 wiadomości -> mnożnik 1.0 (normalna szansa)
-            # Jeśli 100+ wiadomości -> mnożnik 5.0 (bardzo wysoka szansa)
+            # Determine chance multiplier based on total server activity in the last hour
+            # If 0 messages -> multiplier 0.1 (very low chance)
+            # If 20 messages -> multiplier 1.0 (normal chance)
+            # If 100+ messages -> multiplier 5.0 (very high chance)
             multiplier = max(0.1, min(5.0, total_activity / 20.0))
             
             prob = self.get_probability(guild.id)
             
-            # Jeśli funkcja prawdopodobieństwa uzna, że nie wysyłamy wiadomości, to pomijamy
+            # If the probability function decides not to trigger, we skip
             if not prob.should_trigger(extra_multiplier=multiplier):
                 continue
 
-            # Jeśli pomimo wylosowania nie mamy żadnych aktywnych kanałów z aktywnością bota, pomijamy
+            # If it triggers but there are no active channels with bot history, we skip
             if not active_channels:
                 continue
 
-            # Sortowanie i losowanie z uwzględnieniem wagi (aktywności na kanale)
+            # Sorting and randomly selecting a channel considering weights (channel activity)
             channels = [item[0] for item in active_channels]
             weights = [item[1] for item in active_channels]
             
             chosen_channel = random.choices(channels, weights=weights, k=1)[0]
             
             try:
-                # Tutaj mockup do wywołania webhooka
+                # Webhook trigger mockup goes here
                 await chosen_channel.send("MOCKUP: Webhook trigger")
             except Exception as e:
                 print(f"Failed to send random message in {chosen_channel.name}: {e}")
 
-        # Po przejściu wszystkich serwerów, resetujemy liczniki wiadomości na kolejną godzinę
+        # After iterating through all guilds, reset the message counters for the next hour
         self.hourly_message_counts.clear()
 
     @random_message_task.before_loop
