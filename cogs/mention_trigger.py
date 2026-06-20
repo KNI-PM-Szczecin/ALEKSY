@@ -12,8 +12,9 @@ class MentionTriggerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: nextcord.Message):
-        # Ignore bots (including ourselves) to avoid feedback loops.
-        if message.author.bot:
+        # Ignore only our own messages to avoid a self-loop; other bots are allowed
+        # so the bot can talk with other bots.
+        if self.client.user and message.author.id == self.client.user.id:
             return
 
         # Only guild messages carry channel/guild context for the webhook.
